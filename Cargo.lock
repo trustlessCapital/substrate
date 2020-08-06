@@ -1644,6 +1644,7 @@ name = "frame-metadata"
 version = "12.0.0"
 dependencies = [
  "parity-scale-codec",
+ "scale-info",
  "serde",
  "sp-core",
  "sp-std",
@@ -7557,6 +7558,28 @@ dependencies = [
  "substrate-test-runtime-transaction-pool",
  "thiserror",
  "wasm-timer",
+]
+
+[[package]]
+name = "scale-info"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7919285337ce8aab83d156ab7516b5eeb4d76c412c60fbf0c2f55f63c4791e0c"
+dependencies = [
+ "derive_more",
+ "scale-info-derive",
+ "serde",
+]
+
+[[package]]
+name = "scale-info-derive"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00498ee979e23cf6e9cc57e41d97a7c6dfc9927b95848d715358184b8a614860"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

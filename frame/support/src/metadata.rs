@@ -22,6 +22,8 @@ pub use frame_metadata::{
 	ExtrinsicMetadata,
 };
 
+pub use frame_metadata::scale_info;
+
 /// Implements the metadata support for the given runtime and all its modules.
 ///
 /// Example:

@@ -22,7 +22,7 @@ pub use frame_metadata::{
 	ExtrinsicMetadata,
 };
 
-pub use frame_metadata::scale_info;
+pub use frame_metadata::vnext;
 
 /// Implements the metadata support for the given runtime and all its modules.
 ///
@@ -71,20 +71,20 @@ macro_rules! impl_runtime_metadata {
 			$( $rest:tt )*
 	) => {
 		impl $runtime {
-			pub fn metadata() -> $crate::metadata::RuntimeMetadataPrefixed {
-				$crate::metadata::RuntimeMetadataLastVersion {
+			pub fn metadata() -> $crate::metadata::vnext::RuntimeMetadataPrefixed<scale_info::form::CompactForm> {
+				$crate::metadata::vnext::RuntimeMetadataLastVersion {
 						modules: $crate::__runtime_modules_to_metadata!($runtime;; $( $rest )*),
-						extrinsic: $crate::metadata::ExtrinsicMetadata {
-							version: <$ext as $crate::sp_runtime::traits::ExtrinsicMetadata>::VERSION,
-							signed_extensions: <
-									<
-										$ext as $crate::sp_runtime::traits::ExtrinsicMetadata
-									>::SignedExtensions as $crate::sp_runtime::traits::SignedExtension
-								>::identifier()
-									.into_iter()
-									.map($crate::metadata::DecodeDifferent::Encode)
-									.collect(),
-						},
+						// extrinsic: $crate::metadata::ExtrinsicMetadata {
+						// 	version: <$ext as $crate::sp_runtime::traits::ExtrinsicMetadata>::VERSION,
+						// 	signed_extensions: <
+						// 			<
+						// 				$ext as $crate::sp_runtime::traits::ExtrinsicMetadata
+						// 			>::SignedExtensions as $crate::sp_runtime::traits::SignedExtension
+						// 		>::identifier()
+						// 			.into_iter()
+						// 			.map($crate::metadata::DecodeDifferent::Encode)
+						// 			.collect(),
+						// },
 				}.into()
 			}
 		}
@@ -105,28 +105,28 @@ macro_rules! __runtime_modules_to_metadata {
 	) => {
 		$crate::__runtime_modules_to_metadata!(
 			$runtime;
-			$( $metadata, )* $crate::metadata::ModuleMetadata {
-				name: $crate::metadata::DecodeDifferent::Encode(stringify!($name)),
+			$( $metadata, )* $crate::metadata::vnext::ModuleMetadata {
+				name: stringify!($name),
 				index: $index,
-				storage: $crate::__runtime_modules_to_metadata_calls_storage!(
-					$mod, $module $( <$instance> )?, $runtime, $(with $kw)*
-				),
+				// storage: $crate::__runtime_modules_to_metadata_calls_storage!(
+				// 	$mod, $module $( <$instance> )?, $runtime, $(with $kw)*
+				// ),
 				calls: $crate::__runtime_modules_to_metadata_calls_call!(
 					$mod, $module $( <$instance> )?, $runtime, $(with $kw)*
 				),
-				event: $crate::__runtime_modules_to_metadata_calls_event!(
-					$mod, $module $( <$instance> )?, $runtime, $(with $kw)*
-				),
-				constants: $crate::metadata::DecodeDifferent::Encode(
-					$crate::metadata::FnEncode(
-						$mod::$module::<$runtime $(, $mod::$instance )?>::module_constants_metadata
-					)
-				),
-				errors: $crate::metadata::DecodeDifferent::Encode(
-					$crate::metadata::FnEncode(
-						<$mod::$module::<$runtime $(, $mod::$instance )?> as $crate::metadata::ModuleErrorMetadata>::metadata
-					)
-				)
+				// event: $crate::__runtime_modules_to_metadata_calls_event!(
+				// 	$mod, $module $( <$instance> )?, $runtime, $(with $kw)*
+				// ),
+				// constants: $crate::metadata::DecodeDifferent::Encode(
+				// 	$crate::metadata::FnEncode(
+				// 		$mod::$module::<$runtime $(, $mod::$instance )?>::module_constants_metadata
+				// 	)
+				// ),
+				// errors: $crate::metadata::DecodeDifferent::Encode(
+				// 	$crate::metadata::FnEncode(
+				// 		<$mod::$module::<$runtime $(, $mod::$instance )?> as $crate::metadata::ModuleErrorMetadata>::metadata
+				// 	)
+				// )
 			};
 			$( $rest )*
 		)
@@ -135,7 +135,7 @@ macro_rules! __runtime_modules_to_metadata {
 		$runtime:ident;
 		$( $metadata:expr ),*;
 	) => {
-		$crate::metadata::DecodeDifferent::Encode(&[ $( $metadata ),* ])
+		vec![$( $metadata ),* ]
 	};
 }
 
@@ -149,11 +149,9 @@ macro_rules! __runtime_modules_to_metadata_calls_call {
 		with Call
 		$(with $kws:ident)*
 	) => {
-		Some($crate::metadata::DecodeDifferent::Encode(
-			$crate::metadata::FnEncode(
-				$mod::$module::<$runtime $(, $mod::$instance )?>::call_functions
-			)
-		))
+		// todo: [AJ] build vnext call functions or just use Call enum metadata?
+		// Some($mod::$module::<$runtime $(, $mod::$instance )?>::call_functions().to_vec())
+		None
 	};
 	(
 		$mod: ident,
@@ -255,13 +253,13 @@ macro_rules! __runtime_modules_to_metadata_calls_storage {
 mod tests {
 	use super::*;
 	use frame_metadata::{
-		EventMetadata, StorageEntryModifier, StorageEntryType, FunctionMetadata, StorageEntryMetadata,
-		ModuleMetadata, RuntimeMetadataPrefixed, DefaultByte, ModuleConstantMetadata, DefaultByteGetter,
-		ErrorMetadata, ExtrinsicMetadata,
+		RuntimeMetadataPrefixed, DefaultByte
 	};
 	use codec::{Encode, Decode};
 	use crate::traits::Get;
+	use scale_info::{Registry, IntoCompact};
 	use sp_runtime::transaction_validity::TransactionValidityError;
+	use scale_info::form::CompactForm;
 
 	#[derive(Clone, Eq, Debug, PartialEq, Encode, Decode)]
 	struct TestExtension;
@@ -488,140 +486,142 @@ mod tests {
 
 	#[test]
 	fn runtime_metadata() {
-		let expected_metadata: RuntimeMetadataLastVersion = RuntimeMetadataLastVersion {
-			modules: DecodeDifferent::Encode(&[
-				ModuleMetadata {
-					name: DecodeDifferent::Encode("System"),
+		let mut registry = Registry::new();
+		let expected_metadata = vnext::RuntimeMetadataLastVersion {
+			modules: vec![
+				vnext::ModuleMetadata {
+					name: "System",
 					index: 0,
-					storage: None,
+					// storage: None,
 					calls: None,
-					event: Some(DecodeDifferent::Encode(
-						FnEncode(||&[
-							EventMetadata {
-								name: DecodeDifferent::Encode("SystemEvent"),
-								arguments: DecodeDifferent::Encode(&[]),
-								documentation: DecodeDifferent::Encode(&[])
-							}
-						])
-					)),
-					constants: DecodeDifferent::Encode(
-						FnEncode(|| &[
-							ModuleConstantMetadata {
-								name: DecodeDifferent::Encode("BlockNumber"),
-								ty: DecodeDifferent::Encode("T::BlockNumber"),
-								value: DecodeDifferent::Encode(
-									DefaultByteGetter(&ConstantBlockNumberByteGetter)
-								),
-								documentation: DecodeDifferent::Encode(&[" Hi, I am a comment."]),
-							},
-							ModuleConstantMetadata {
-								name: DecodeDifferent::Encode("GetType"),
-								ty: DecodeDifferent::Encode("T::AccountId"),
-								value: DecodeDifferent::Encode(
-									DefaultByteGetter(&ConstantGetTypeByteGetter)
-								),
-								documentation: DecodeDifferent::Encode(&[]),
-							},
-							ModuleConstantMetadata {
-								name: DecodeDifferent::Encode("ASSOCIATED_CONST"),
-								ty: DecodeDifferent::Encode("u64"),
-								value: DecodeDifferent::Encode(
-									DefaultByteGetter(&ConstantAssociatedConstByteGetter)
-								),
-								documentation: DecodeDifferent::Encode(&[]),
-							}
-						])
-					),
-					errors: DecodeDifferent::Encode(FnEncode(|| &[])),
+					// event: Some(DecodeDifferent::Encode(
+					// 	FnEncode(||&[
+					// 		EventMetadata {
+					// 			name: DecodeDifferent::Encode("SystemEvent"),
+					// 			arguments: DecodeDifferent::Encode(&[]),
+					// 			documentation: DecodeDifferent::Encode(&[])
+					// 		}
+					// 	])
+					// )),
+					// constants: DecodeDifferent::Encode(
+					// 	FnEncode(|| &[
+					// 		ModuleConstantMetadata {
+					// 			name: DecodeDifferent::Encode("BlockNumber"),
+					// 			ty: DecodeDifferent::Encode("T::BlockNumber"),
+					// 			value: DecodeDifferent::Encode(
+					// 				DefaultByteGetter(&ConstantBlockNumberByteGetter)
+					// 			),
+					// 			documentation: DecodeDifferent::Encode(&[" Hi, I am a comment."]),
+					// 		},
+					// 		ModuleConstantMetadata {
+					// 			name: DecodeDifferent::Encode("GetType"),
+					// 			ty: DecodeDifferent::Encode("T::AccountId"),
+					// 			value: DecodeDifferent::Encode(
+					// 				DefaultByteGetter(&ConstantGetTypeByteGetter)
+					// 			),
+					// 			documentation: DecodeDifferent::Encode(&[]),
+					// 		},
+					// 		ModuleConstantMetadata {
+					// 			name: DecodeDifferent::Encode("ASSOCIATED_CONST"),
+					// 			ty: DecodeDifferent::Encode("u64"),
+					// 			value: DecodeDifferent::Encode(
+					// 				DefaultByteGetter(&ConstantAssociatedConstByteGetter)
+					// 			),
+					// 			documentation: DecodeDifferent::Encode(&[]),
+					// 		}
+					// 	])
+					// ),
+					// errors: DecodeDifferent::Encode(FnEncode(|| &[])),
 				},
-				ModuleMetadata {
-					name: DecodeDifferent::Encode("Module"),
+				vnext::ModuleMetadata {
+					name: "Module",
 					index: 1,
-					storage: None,
-					calls: Some(
-						DecodeDifferent::Encode(FnEncode(|| &[
-							FunctionMetadata {
-								name: DecodeDifferent::Encode("aux_0"),
-								arguments: DecodeDifferent::Encode(&[]),
-								documentation: DecodeDifferent::Encode(&[]),
-							}
-						]))),
-					event: Some(DecodeDifferent::Encode(
-						FnEncode(||&[
-							EventMetadata {
-								name: DecodeDifferent::Encode("TestEvent"),
-								arguments: DecodeDifferent::Encode(&["Balance"]),
-								documentation: DecodeDifferent::Encode(&[" Hi, I am a comment."])
-							}
-						])
-					)),
-					constants: DecodeDifferent::Encode(FnEncode(|| &[])),
-					errors: DecodeDifferent::Encode(FnEncode(|| &[
-						ErrorMetadata {
-							name: DecodeDifferent::Encode("UserInputError"),
-							documentation: DecodeDifferent::Encode(&[" Some user input error"]),
-						},
-						ErrorMetadata {
-							name: DecodeDifferent::Encode("BadThingHappened"),
-							documentation: DecodeDifferent::Encode(&[
-								" Something bad happened",
-								" this could be due to many reasons",
-							]),
-						},
-					])),
+					// storage: None,
+					calls: Some(vec![
+						vnext::FunctionMetadata {
+								name: "aux_0",
+								arguments: Vec::new(),
+								documentation: Vec::new(),
+							}]),
+					// event: Some(DecodeDifferent::Encode(
+					// 	FnEncode(||&[
+					// 		EventMetadata {
+					// 			name: DecodeDifferent::Encode("TestEvent"),
+					// 			arguments: DecodeDifferent::Encode(&["Balance"]),
+					// 			documentation: DecodeDifferent::Encode(&[" Hi, I am a comment."])
+					// 		}
+					// 	])
+					// )),
+					// constants: DecodeDifferent::Encode(FnEncode(|| &[])),
+					// errors: DecodeDifferent::Encode(FnEncode(|| &[
+					// 	ErrorMetadata {
+					// 		name: DecodeDifferent::Encode("UserInputError"),
+					// 		documentation: DecodeDifferent::Encode(&[" Some user input error"]),
+					// 	},
+					// 	ErrorMetadata {
+					// 		name: DecodeDifferent::Encode("BadThingHappened"),
+					// 		documentation: DecodeDifferent::Encode(&[
+					// 			" Something bad happened",
+					// 			" this could be due to many reasons",
+					// 		]),
+					// 	},
+					// ])),
 				},
-				ModuleMetadata {
-					name: DecodeDifferent::Encode("Module2"),
+				vnext::ModuleMetadata {
+					name: "Module2",
 					index: 2,
-					storage: Some(DecodeDifferent::Encode(
-						FnEncode(|| StorageMetadata {
-							prefix: DecodeDifferent::Encode("TestStorage"),
-							entries: DecodeDifferent::Encode(
-								&[
-									StorageEntryMetadata {
-										name: DecodeDifferent::Encode("StorageMethod"),
-										modifier: StorageEntryModifier::Optional,
-										ty: StorageEntryType::Plain(DecodeDifferent::Encode("u32")),
-										default: DecodeDifferent::Encode(
-											DefaultByteGetter(
-												&event_module2::__GetByteStructStorageMethod(
-													std::marker::PhantomData::<TestRuntime>
-												)
-											)
-										),
-										documentation: DecodeDifferent::Encode(&[]),
-									}
-								]
-							)
-						}),
-					)),
-					calls: Some(DecodeDifferent::Encode(FnEncode(|| &[]))),
-					event: Some(DecodeDifferent::Encode(
-						FnEncode(||&[
-							EventMetadata {
-								name: DecodeDifferent::Encode("TestEvent"),
-								arguments: DecodeDifferent::Encode(&["Balance"]),
-								documentation: DecodeDifferent::Encode(&[])
-							}
-						])
-					)),
-					constants: DecodeDifferent::Encode(FnEncode(|| &[])),
-					errors: DecodeDifferent::Encode(FnEncode(|| &[])),
+					// storage: Some(DecodeDifferent::Encode(
+					// 	FnEncode(|| StorageMetadata {
+					// 		prefix: DecodeDifferent::Encode("TestStorage"),
+					// 		entries: DecodeDifferent::Encode(
+					// 			&[
+					// 				StorageEntryMetadata {
+					// 					name: DecodeDifferent::Encode("StorageMethod"),
+					// 					modifier: StorageEntryModifier::Optional,
+					// 					ty: StorageEntryType::Plain(DecodeDifferent::Encode("u32")),
+					// 					default: DecodeDifferent::Encode(
+					// 						DefaultByteGetter(
+					// 							&event_module2::__GetByteStructStorageMethod(
+					// 								std::marker::PhantomData::<TestRuntime>
+					// 							)
+					// 						)
+					// 					),
+					// 					documentation: DecodeDifferent::Encode(&[]),
+					// 				}
+					// 			]
+					// 		)
+					// 	}),
+					// )),
+					calls: None,
+					// event: Some(DecodeDifferent::Encode(
+					// 	FnEncode(||&[
+					// 		EventMetadata {
+					// 			name: DecodeDifferent::Encode("TestEvent"),
+					// 			arguments: DecodeDifferent::Encode(&["Balance"]),
+					// 			documentation: DecodeDifferent::Encode(&[])
+					// 		}
+					// 	])
+					// )),
+					// constants: DecodeDifferent::Encode(FnEncode(|| &[])),
+					// errors: DecodeDifferent::Encode(FnEncode(|| &[])),
 				},
-			]),
-			extrinsic: ExtrinsicMetadata {
-				version: 1,
-				signed_extensions: vec![
-					DecodeDifferent::Encode("testextension"),
-					DecodeDifferent::Encode("testextension2"),
-				],
-			}
+			],
+			// extrinsic: ExtrinsicMetadata {
+			// 	version: 1,
+			// 	signed_extensions: vec![
+			// 		DecodeDifferent::Encode("testextension"),
+			// 		DecodeDifferent::Encode("testextension2"),
+			// 	],
+			// }
 		};
 
 		let metadata_encoded = TestRuntime::metadata().encode();
-		let metadata_decoded = RuntimeMetadataPrefixed::decode(&mut &metadata_encoded[..]);
-		let expected_metadata: RuntimeMetadataPrefixed = expected_metadata.into();
+		let metadata_decoded = vnext::RuntimeMetadataPrefixed::<scale_info::form::OwnedForm>::decode(&mut &metadata_encoded[..]);
 
-		pretty_assertions::assert_eq!(expected_metadata, metadata_decoded.unwrap());
+		let expected_metadata: vnext::RuntimeMetadataPrefixed<CompactForm> = expected_metadata.into_compact(&mut registry).into();
+		let expected_metadata_encoded = expected_metadata.encode();
+		let expected_metadata_decoded = vnext::RuntimeMetadataPrefixed::<scale_info::form::OwnedForm>::decode(&mut &expected_metadata_encoded[..]);
+
+		pretty_assertions::assert_eq!(expected_metadata_decoded.unwrap(), metadata_decoded.unwrap());
 	}
 }

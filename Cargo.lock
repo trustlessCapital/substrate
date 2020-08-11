@@ -1665,6 +1665,7 @@ dependencies = [
  "parity-util-mem",
  "paste 0.1.18",
  "pretty_assertions",
+ "scale-info",
  "serde",
  "smallvec 1.5.0",
  "sp-api",
@@ -7562,20 +7563,17 @@ dependencies = [
 
 [[package]]
 name = "scale-info"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7919285337ce8aab83d156ab7516b5eeb4d76c412c60fbf0c2f55f63c4791e0c"
+version = "0.4.1"
 dependencies = [
  "derive_more",
+ "parity-scale-codec",
  "scale-info-derive",
  "serde",
 ]
 
 [[package]]
 name = "scale-info-derive"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00498ee979e23cf6e9cc57e41d97a7c6dfc9927b95848d715358184b8a614860"
+version = "0.2.1"
 dependencies = [
  "proc-macro2",
  "quote",

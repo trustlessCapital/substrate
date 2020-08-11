@@ -24,9 +24,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "std")]
-use serde::Serialize;
-#[cfg(feature = "std")]
-use codec::{Encode, Output};
+use codec::{Encode, Decode};
 use sp_core::RuntimeDebug;
 use sp_std::vec::Vec;
 
@@ -36,20 +34,47 @@ use scale_info::{
 		Form,
 		MetaForm,
 	},
-	meta_type,
 	IntoCompact,
 	Registry,
-	TypeInfo,
 };
+
+pub type RuntimeMetadataLastVersion<T> = RuntimeMetadataV11<T>;
+
+/// Metadata prefixed by a u32 for reserved usage
+#[derive(Eq, Encode, PartialEq, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Decode))]
+pub struct RuntimeMetadataPrefixed<T: Form = MetaForm>(pub u32, pub RuntimeMetadata<T>);
+
+impl From<RuntimeMetadataLastVersion<CompactForm>> for RuntimeMetadataPrefixed<CompactForm> {
+	fn from(metadata: RuntimeMetadataLastVersion<CompactForm>) -> RuntimeMetadataPrefixed<CompactForm> {
+		RuntimeMetadataPrefixed(super::META_RESERVED, RuntimeMetadata::V11(metadata))
+	}
+}
+
+impl From<RuntimeMetadataPrefixed<CompactForm>> for sp_core::OpaqueMetadata {
+	fn from(metadata: RuntimeMetadataPrefixed<CompactForm>) -> Self {
+		sp_core::OpaqueMetadata::new(metadata.encode())
+	}
+}
+
+/// The metadata of a runtime.
+/// The version ID encoded/decoded through
+/// the enum nature of `RuntimeMetadata`.
+#[derive(Eq, Encode, PartialEq, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Decode))]
+pub enum RuntimeMetadata<T: Form = MetaForm> {
+	/// Version 11 for runtime metadata.
+	V11(RuntimeMetadataV11<T>),
+}
 
 /// The metadata of a runtime.
 #[derive(Clone, PartialEq, Eq, Encode, RuntimeDebug)]
-#[cfg_attr(feature = "std", derive(Serialize), serde(bound = "F::TypeId: Serialize"))]
-pub struct RuntimeMetadataV11<F: Form = MetaForm> {
+#[cfg_attr(feature = "std", derive(Decode))]
+pub struct RuntimeMetadataV11<T: Form = MetaForm> {
 	/// Metadata of all the modules.
-	pub modules: Vec<ModuleMetadata<F>>,
-	/// Metadata of the extrinsic.
-	pub extrinsic: ExtrinsicMetadata<F>,
+	pub modules: Vec<ModuleMetadata<T>>,
+	// /// Metadata of the extrinsic.
+	// pub extrinsic: ExtrinsicMetadata<F>,
 }
 
 impl IntoCompact for RuntimeMetadataV11 {
@@ -58,19 +83,19 @@ impl IntoCompact for RuntimeMetadataV11 {
 	fn into_compact(self, registry: &mut Registry) -> Self::Output {
 		RuntimeMetadataV11 {
 			modules: registry.map_into_compact(self.modules),
-			extrinsic: self.extrinsic.into_compact(registry),
+			// extrinsic: self.extrinsic.into_compact(registry),
 		}
 	}
 }
 
 /// Metadata of the extrinsic used by the runtime.
 #[derive(Clone, PartialEq, Eq, Encode, RuntimeDebug)]
-#[cfg_attr(feature = "std", derive(Serialize), serde(bound = "F::TypeId: Serialize"))]
-pub struct ExtrinsicMetadata<F: Form = MetaForm> {
+#[cfg_attr(feature = "std", derive(Decode))]
+pub struct ExtrinsicMetadata<T: Form = MetaForm> {
 	/// Extrinsic version.
 	pub version: u8,
 	/// The signed extensions in the order they appear in the extrinsic.
-	pub signed_extensions: Vec<F::TypeId>,
+	pub signed_extensions: Vec<T::TypeId>,
 }
 
 impl IntoCompact for ExtrinsicMetadata {
@@ -86,11 +111,11 @@ impl IntoCompact for ExtrinsicMetadata {
 
 /// All metadata about an runtime module.
 #[derive(Clone, PartialEq, Eq, Encode, RuntimeDebug)]
-#[cfg_attr(feature = "std", derive(Serialize), serde(bound = "F::TypeId: Serialize"))]
-pub struct ModuleMetadata<F: Form = MetaForm> {
-	pub name: &'static str,
+#[cfg_attr(feature = "std", derive(Decode))]
+pub struct ModuleMetadata<T: Form = MetaForm> {
+	pub name: T::String,
 	// pub storage: Option<DecodeDifferent<FnEncode<StorageMetadata>, StorageMetadata>>,
-	pub calls: Option<FunctionMetadata<F>>,
+	pub calls: Option<Vec<FunctionMetadata<T>>>,
 	// pub event: ODFnA<EventMetadata>,
 	// pub constants: DFnA<ModuleConstantMetadata>,
 	// pub errors: DFnA<ErrorMetadata>,
@@ -102,18 +127,18 @@ impl IntoCompact for ModuleMetadata {
 	fn into_compact(self, registry: &mut Registry) -> Self::Output {
 		ModuleMetadata {
 			name: self.name,
-			calls: self.calls.map(|calls| calls.into_compact(registry)),
+			calls: self.calls.map(|calls| registry.map_into_compact(calls)),
 		}
 	}
 }
 
 /// All the metadata about a function.
 #[derive(Clone, PartialEq, Eq, Encode, RuntimeDebug)]
-#[cfg_attr(feature = "std", derive(Serialize), serde(bound = "F::TypeId: Serialize"))]
-pub struct FunctionMetadata<F: Form = MetaForm> {
-	pub name: &'static str,
-	pub arguments: Vec<FunctionArgumentMetadata<F>>,
-	pub documentation: &'static [&'static str],
+#[cfg_attr(feature = "std", derive(Decode))]
+pub struct FunctionMetadata<T: Form = MetaForm> {
+	pub name: T::String,
+	pub arguments: Vec<FunctionArgumentMetadata<T>>,
+	pub documentation: Vec<T::String>,
 }
 
 impl IntoCompact for FunctionMetadata {
@@ -130,10 +155,10 @@ impl IntoCompact for FunctionMetadata {
 
 /// All the metadata about a function argument.
 #[derive(Clone, PartialEq, Eq, Encode, RuntimeDebug)]
-#[cfg_attr(feature = "std", derive(Serialize), serde(bound = "F::TypeId: Serialize"))]
-pub struct FunctionArgumentMetadata<F: Form = MetaForm> {
-	pub name: &'static str,
-	pub ty: F::TypeId,
+#[cfg_attr(feature = "std", derive(Decode))]
+pub struct FunctionArgumentMetadata<T: Form = MetaForm> {
+	pub name: T::String,
+	pub ty: T::TypeId,
 }
 
 impl IntoCompact for FunctionArgumentMetadata {

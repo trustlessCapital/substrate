@@ -323,7 +323,7 @@ macro_rules! implement_per_thing {
 		///
 		#[doc = $title]
 		#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-		#[derive(Encode, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, RuntimeDebug)]
+		#[derive(Encode, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, RuntimeDebug, scale_info::TypeInfo)]
 		pub struct $name($type);
 
 		/// Implementation makes any compact encoding of `PerThing::Inner` valid,
@@ -334,7 +334,7 @@ macro_rules! implement_per_thing {
 				&self.0
 			}
 			fn decode_from(x: Self::As) -> Self {
-				// Saturates if `x` is more than `$max` internally. 
+				// Saturates if `x` is more than `$max` internally.
 				Self::from_parts(x)
 			}
 		}

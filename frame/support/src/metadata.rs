@@ -411,7 +411,7 @@ mod tests {
 	type EventModule = event_module::Module<TestRuntime>;
 	type EventModule2 = event_module2::Module<TestRuntime>;
 
-	#[derive(Debug, Clone, PartialEq, Eq, Encode, Decode)]
+	#[derive(Debug, Clone, PartialEq, Eq, Encode, Decode, scale_info::TypeInfo)]
 	pub struct TestRuntime;
 
 	impl_outer_event! {

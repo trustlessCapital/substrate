@@ -294,9 +294,12 @@ mod tests {
 		type SignedExtensions = (TestExtension, TestExtension2);
 	}
 
-	mod system {
+	#[frame_support::pallet(System)]
+	mod frame_system {
 		use super::*;
+		use frame_support::pallet_prelude::*; // Import various types used in pallet definition
 
+		#[pallet::trait_]
 		pub trait Config: 'static {
 			type BaseCallFilter;
 			const ASSOCIATED_CONST: u64 = 500;
@@ -310,6 +313,7 @@ mod tests {
 			type Call;
 		}
 
+		// todo: [AJ] from rebase need to make this proc macro style
 		decl_module! {
 			pub struct Module<T: Config> for enum Call where origin: T::Origin, system=self {
 				/// Hi, I am a comment.
@@ -319,11 +323,13 @@ mod tests {
 			}
 		}
 
-		decl_event!(
-			pub enum Event {
-				SystemEvent,
-			}
-		);
+		#[pallet::call]
+		impl<T: Config> Call for Module<T> {}
+
+		#[pallet::event]
+		pub enum Event {
+			SystemEvent,
+		}
 
 		#[derive(Clone, PartialEq, Eq, Debug, Encode, Decode)]
 		pub enum RawOrigin<AccountId> {
@@ -416,14 +422,14 @@ mod tests {
 
 	impl_outer_event! {
 		pub enum TestEvent for TestRuntime {
-			system,
+			frame_system,
 			event_module<T>,
 			event_module2<T>,
 		}
 	}
 
 	impl_outer_origin! {
-		pub enum Origin for TestRuntime where system = system {}
+		pub enum Origin for TestRuntime where system = frame_system {}
 	}
 
 	impl_outer_dispatch! {
@@ -445,7 +451,7 @@ mod tests {
 		pub const SystemValue: u32 = 600;
 	}
 
-	impl system::Config for TestRuntime {
+	impl frame_system::Config for TestRuntime {
 		type BaseCallFilter = ();
 		type Origin = Origin;
 		type AccountId = u32;
@@ -480,7 +486,7 @@ mod tests {
 	struct ConstantAssociatedConstByteGetter;
 	impl DefaultByte for ConstantAssociatedConstByteGetter {
 		fn default_byte(&self) -> Vec<u8> {
-			<TestRuntime as system::Config>::ASSOCIATED_CONST.encode()
+			<TestRuntime as frame_system::Config>::ASSOCIATED_CONST.encode()
 		}
 	}
 

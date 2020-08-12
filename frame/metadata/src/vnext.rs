@@ -159,6 +159,7 @@ impl IntoCompact for FunctionMetadata {
 pub struct FunctionArgumentMetadata<T: Form = MetaForm> {
 	pub name: T::String,
 	pub ty: T::TypeId,
+	pub is_compact: bool,
 }
 
 impl IntoCompact for FunctionArgumentMetadata {
@@ -168,6 +169,7 @@ impl IntoCompact for FunctionArgumentMetadata {
 		FunctionArgumentMetadata {
 			name: self.name,
 			ty: registry.register_type(&self.ty),
+			is_compact: self.is_compact,
 		}
 	}
 }

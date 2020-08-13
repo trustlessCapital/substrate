@@ -259,6 +259,7 @@ mod tests {
 	use crate::traits::Get;
 	use scale_info::{Registry, IntoCompact};
 	use sp_runtime::transaction_validity::TransactionValidityError;
+	use sp_std::marker::PhantomData;
 	use scale_info::form::CompactForm;
 
 	#[derive(Clone, Eq, Debug, PartialEq, Encode, Decode)]
@@ -297,7 +298,7 @@ mod tests {
 	#[frame_support::pallet(System)]
 	mod frame_system {
 		use super::*;
-		use frame_support::pallet_prelude::*; // Import various types used in pallet definition
+		use frame_support::pallet_prelude::*;
 
 		#[pallet::trait_]
 		pub trait Config: 'static {
@@ -350,68 +351,83 @@ mod tests {
 		pub type Origin<T> = RawOrigin<<T as Config>::AccountId>;
 	}
 
+	#[frame_support::pallet(EventModule)]
 	mod event_module {
 		use crate::dispatch::DispatchResult;
-		use super::system;
+		use super::frame_system;
 
-		pub trait Config: system::Config {
-			type Balance;
+		#[pallet::trait_]
+		pub trait Config: frame_system::Config {
+			type Balance: PartialEq + Eq + sp_std::fmt::Debug;
 		}
 
-		decl_event!(
-			pub enum Event<T> where <T as Config>::Balance
-			{
-				/// Hi, I am a comment.
-				TestEvent(Balance),
-			}
-		);
+		type BalanceOf<T> = <T as Config>::Balance;
 
-		decl_module! {
-			pub struct Module<T: Config> for enum Call where origin: T::Origin, system=system {
-				type Error = Error<T>;
+		#[pallet::event]
+		// pub enum Event<T> {}
+		// #[pallet::metadata(BalanceOf<T> = Balance)]
+		pub enum Event<T: Config> {
+			/// Hi, I am a comment.
+			TestEvent(BalanceOf<T>),
+		}
 
-				#[weight = 0]
-				fn aux_0(_origin) -> DispatchResult { unreachable!() }
+		#[pallet::module]
+		pub struct Module<T>(PhantomData<T>);
+
+		#[pallet::module_interface]
+		impl<T: Config> ModuleInterface<BlockNumberFor<T>> for Module<T> {
+		}
+
+		#[pallet::call]
+		impl<T: Config> Call for Module<T> {
+			/// Doc comment put in metadata
+			#[pallet::weight = 0] // Defines weight for call (function parameters are in scope)
+			fn aux_0(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+				let _ = origin;
+				unreachable!();
 			}
 		}
 
-		crate::decl_error! {
-			pub enum Error for Module<T: Config> {
-				/// Some user input error
-				UserInputError,
-				/// Something bad happened
-				/// this could be due to many reasons
-				BadThingHappened,
-			}
+		#[pallet::error]
+		pub enum Error<T> {
+			/// Some user input error
+			UserInputError,
+			/// Something bad happened
+			/// this could be due to many reasons
+			BadThingHappened,
 		}
 	}
 
+	#[frame_support::pallet(EventModule2)]
 	mod event_module2 {
-		use super::system;
+		use super::frame_system;
 
-		pub trait Config: system::Config {
+		#[pallet::trait_]
+		pub trait Config: frame_system::Config {
 			type Balance;
 		}
 
-		decl_event!(
-			pub enum Event<T> where <T as Config>::Balance
-			{
-				TestEvent(Balance),
-			}
-		);
+		#[pallet::module]
+		pub struct Module<T>(PhantomData<T>);
 
-		decl_module! {
-			pub struct Module<T: Config> for enum Call where origin: T::Origin, system=system {}
+		#[pallet::module_interface]
+		impl<T: Config> ModuleInterface<BlockNumberFor<T>> for Module<T> {
 		}
 
-		crate::decl_storage! {
-			trait Store for Module<T: Config> as TestStorage {
-				StorageMethod : Option<u32>;
-			}
-			add_extra_genesis {
-				build(|_| {});
-			}
-		}
+		#[pallet::call]
+		impl<T: Config> Call for Module<T> {}
+
+		type BalanceOf<T> = <T as Configj>::Balance;
+
+		#[pallet::event]
+		pub enum Event<T> {}
+		// #[pallet::metadata(BalanceOf<T> = Balance)]
+		// pub enum Event<T: Trait> {
+		// 	TestEvent(BalanceOf<T>),
+		// }
+
+		#[pallet::storage] #[allow(type_alias_bounds)]
+		type TestStorage = StorageValueType<TestStorageP, Option<u32>, ValueQuery>;
 	}
 
 	type EventModule = event_module::Module<TestRuntime>;

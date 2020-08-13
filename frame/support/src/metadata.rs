@@ -258,7 +258,10 @@ mod tests {
 	use codec::{Encode, Decode};
 	use crate::traits::Get;
 	use scale_info::{Registry, IntoCompact};
-	use sp_runtime::transaction_validity::TransactionValidityError;
+	use sp_runtime::{
+		traits::Member,
+		transaction_validity::TransactionValidityError
+	};
 	use sp_std::marker::PhantomData;
 	use scale_info::form::CompactForm;
 
@@ -420,11 +423,10 @@ mod tests {
 		type BalanceOf<T> = <T as Configj>::Balance;
 
 		#[pallet::event]
-		pub enum Event<T> {}
-		// #[pallet::metadata(BalanceOf<T> = Balance)]
-		// pub enum Event<T: Trait> {
-		// 	TestEvent(BalanceOf<T>),
-		// }
+		#[pallet::metadata(BalanceOf<T> = Balance)]
+		pub enum Event<T: Trait> {
+			TestEvent(BalanceOf<T>),
+		}
 
 		#[pallet::storage] #[allow(type_alias_bounds)]
 		type TestStorage = StorageValueType<TestStorageP, Option<u32>, ValueQuery>;

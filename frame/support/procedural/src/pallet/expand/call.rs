@@ -215,7 +215,7 @@ pub fn expand_call(def: &mut Def) -> proc_macro2::TokenStream {
 								is_compact: #args_is_compact,
 							},
 						)* ],
-						documentation: vec![[ #( #fn_doc ),* ]],
+						documentation: vec![ #( #fn_doc ),* ],
 					},
 				)* ]
 			}

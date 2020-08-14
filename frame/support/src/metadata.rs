@@ -72,20 +72,24 @@ macro_rules! impl_runtime_metadata {
 	) => {
 		impl $runtime {
 			pub fn metadata() -> $crate::metadata::vnext::RuntimeMetadataPrefixed<scale_info::form::CompactForm> {
-				$crate::metadata::vnext::RuntimeMetadataLastVersion {
-						modules: $crate::__runtime_modules_to_metadata!($runtime;; $( $rest )*),
-						// extrinsic: $crate::metadata::ExtrinsicMetadata {
-						// 	version: <$ext as $crate::sp_runtime::traits::ExtrinsicMetadata>::VERSION,
-						// 	signed_extensions: <
-						// 			<
-						// 				$ext as $crate::sp_runtime::traits::ExtrinsicMetadata
-						// 			>::SignedExtensions as $crate::sp_runtime::traits::SignedExtension
-						// 		>::identifier()
-						// 			.into_iter()
-						// 			.map($crate::metadata::DecodeDifferent::Encode)
-						// 			.collect(),
-						// },
-				}.into()
+				let mut registry = ::scale_info::Registry::new();
+				let metadata =
+					$crate::metadata::vnext::RuntimeMetadataLastVersion {
+							modules: $crate::__runtime_modules_to_metadata!($runtime;; $( $rest )*),
+							// extrinsic: $crate::metadata::ExtrinsicMetadata {
+							// 	version: <$ext as $crate::sp_runtime::traits::ExtrinsicMetadata>::VERSION,
+							// 	signed_extensions: <
+							// 			<
+							// 				$ext as $crate::sp_runtime::traits::ExtrinsicMetadata
+							// 			>::SignedExtensions as $crate::sp_runtime::traits::SignedExtension
+							// 		>::identifier()
+							// 			.into_iter()
+							// 			.map($crate::metadata::DecodeDifferent::Encode)
+							// 			.collect(),
+							// },
+				};
+				use ::scale_info::IntoCompact as _;
+				metadata.into_compact(&mut registry).into()
 			}
 		}
 	}
@@ -149,9 +153,7 @@ macro_rules! __runtime_modules_to_metadata_calls_call {
 		with Call
 		$(with $kws:ident)*
 	) => {
-		// todo: [AJ] build vnext call functions or just use Call enum metadata?
-		// Some($mod::$module::<$runtime $(, $mod::$instance )?>::call_functions().to_vec())
-		None
+		Some($mod::$module::<$runtime $(, $mod::$instance )?>::call_functions2())
 	};
 	(
 		$mod: ident,

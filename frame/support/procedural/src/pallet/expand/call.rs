@@ -57,19 +57,6 @@ pub fn expand_call(def: &mut Def) -> proc_macro2::TokenStream {
 			.collect::<Vec<_>>()
 	});
 
-	let args_metadata_type = def.call.methods.iter().map(|method| {
-		method.args.iter()
-			.map(|(is_compact, _, type_)| {
-				let final_type = if *is_compact {
-					quote::quote!(Compact<#type_>)
-				} else {
-					quote::quote!(#type_)
-				};
-				clean_type_string(&final_type.to_string())
-			})
-			.collect::<Vec<_>>()
-	});
-
 	let args_is_compact = def.call.methods.iter().map(|method| {
 		method.args.iter()
 			.map(|(is_compact, _, _)| is_compact)
@@ -178,33 +165,7 @@ pub fn expand_call(def: &mut Def) -> proc_macro2::TokenStream {
 
 		impl<#type_impl_gen> #pallet_ident<#type_use_gen> #where_clause {
 			#[doc(hidden)]
-			pub fn call_functions() -> &'static [#frame_support::dispatch::FunctionMetadata] {
-				&[ #(
-					#frame_support::dispatch::FunctionMetadata {
-						name: #frame_support::dispatch::DecodeDifferent::Encode(
-							stringify!(#fn_name)
-						),
-						arguments: #frame_support::dispatch::DecodeDifferent::Encode(
-							&[ #(
-								#frame_support::dispatch::FunctionArgumentMetadata {
-									name: #frame_support::dispatch::DecodeDifferent::Encode(
-										stringify!(#args_name)
-									),
-									ty: #frame_support::dispatch::DecodeDifferent::Encode(
-										#args_metadata_type
-									),
-								},
-							)* ]
-						),
-						documentation: #frame_support::dispatch::DecodeDifferent::Encode(
-							&[ #( #fn_doc ),* ]
-						),
-					},
-				)* ]
-			}
-
-			#[doc(hidden)]
-			pub fn call_functions2() -> Vec<#scrate::metadata::vnext::FunctionMetadata> {
+			pub fn call_functions() -> Vec<#scrate::metadata::vnext::FunctionMetadata> {
 				vec![ #(
 					#scrate::metadata::vnext::FunctionMetadata {
 						name: stringify!(#fn_),

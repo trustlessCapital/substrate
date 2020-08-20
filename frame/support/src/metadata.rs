@@ -29,6 +29,9 @@ pub use frame_metadata::vnext;
 /// Example:
 /// ```
 ///# mod module0 {
+///#    // Kind of alias for `Config` trait. Deprecated as `Trait` is renamed `Config`.
+///#    pub trait Trait: Config {}
+///#    impl<T: Config> Trait for T {}
 ///#    pub trait Config: 'static {
 ///#        type Origin;
 ///#        type BlockNumber;
@@ -36,11 +39,11 @@ pub use frame_metadata::vnext;
 ///#        type DbWeight: frame_support::traits::Get<frame_support::weights::RuntimeDbWeight>;
 ///#    }
 ///#    frame_support::decl_module! {
-///#        pub struct Module<T: Config> for enum Call where origin: T::Origin, system=self {}
+///#        pub struct Module<T: Trait> for enum Call where origin: T::Origin, system=self {}
 ///#    }
 ///#
 ///#    frame_support::decl_storage! {
-///#        trait Store for Module<T: Config> as TestStorage {}
+///#        trait Store for Module<T: Trait> as TestStorage {}
 ///#    }
 ///# }
 ///# use module0 as module1;
@@ -251,9 +254,7 @@ macro_rules! __runtime_modules_to_metadata_calls_storage {
 #[allow(dead_code)]
 mod tests {
 	use super::*;
-	use frame_metadata::{
-		RuntimeMetadataPrefixed, DefaultByte
-	};
+	use frame_metadata::DefaultByte;
 	use codec::{Encode, Decode};
 	use crate::traits::Get;
 	use scale_info::{Registry, IntoCompact};
@@ -302,6 +303,9 @@ mod tests {
 		use super::*;
 		use frame_support::pallet_prelude::*;
 
+		/// Kind of alias for `Config` trait. Deprecated as `Trait` is renamed `Config`.
+		pub trait Trait: Config {}
+		impl<T: Config> Trait for T {}
 		#[pallet::trait_]
 		pub trait Config: 'static {
 			type BaseCallFilter;
@@ -316,18 +320,21 @@ mod tests {
 			type Call;
 		}
 
-		// todo: [AJ] from rebase need to make this proc macro style
-		decl_module! {
-			pub struct Module<T: Config> for enum Call where origin: T::Origin, system=self {
-				/// Hi, I am a comment.
-				const BlockNumber: T::BlockNumber = 100.into();
-				const GetType: T::AccountId = T::SomeValue::get().into();
-				const ASSOCIATED_CONST: u64 = T::ASSOCIATED_CONST.into();
-			}
+		// emulate the actual frame_system module exports
+		pub mod pallet_prelude {
+			pub type OriginFor<T> = <T as super::Trait>::Origin;
+			pub type BlockNumberFor<T> = <T as super::Trait>::BlockNumber;
+		}
+
+		#[pallet::module]
+		pub struct Module<T>(PhantomData<T>);
+
+		#[pallet::module_interface]
+		impl<T: Trait> ModuleInterface<BlockNumberFor<T>> for Module<T> {
 		}
 
 		#[pallet::call]
-		impl<T: Config> Call for Module<T> {}
+		impl<T: Trait> Call for Module<T> {}
 
 		#[pallet::event]
 		pub enum Event {
@@ -359,19 +366,18 @@ mod tests {
 		use super::frame_system;
 
 		#[pallet::trait_]
-		pub trait Config: frame_system::Config {
-			type Balance: PartialEq + Eq + sp_std::fmt::Debug
+		pub trait Trait: frame_system::Trait {
+			type Balance: Member
 				+ codec::Codec
 				+ scale_info::TypeInfo // todo: [AJ] only for std, and embed encoded on build?
 				+ codec::HasCompact; // todo: [AJ] can we remove this?
 		}
 
-		type BalanceOf<T> = <T as Config>::Balance;
+		type BalanceOf<T> = <T as Trait>::Balance;
 
 		#[pallet::event]
-		// pub enum Event<T> {}
-		// #[pallet::metadata(BalanceOf<T> = Balance)]
-		pub enum Event<T: Config> {
+		#[pallet::metadata(BalanceOf<T> = Balance)]
+		pub enum Event<T: Trait> {
 			/// Hi, I am a comment.
 			TestEvent(BalanceOf<T>),
 		}
@@ -380,11 +386,11 @@ mod tests {
 		pub struct Module<T>(PhantomData<T>);
 
 		#[pallet::module_interface]
-		impl<T: Config> ModuleInterface<BlockNumberFor<T>> for Module<T> {
+		impl<T: Trait> ModuleInterface<BlockNumberFor<T>> for Module<T> {
 		}
 
 		#[pallet::call]
-		impl<T: Config> Call for Module<T> {
+		impl<T: Trait> Call for Module<T> {
 			/// Doc comment put in metadata
 			#[pallet::weight = 0] // Defines weight for call (function parameters are in scope)
 			fn aux_0(origin: OriginFor<T>, #[pallet::compact] balance: T::Balance) -> DispatchResultWithPostInfo {
@@ -409,7 +415,7 @@ mod tests {
 		use super::frame_system;
 
 		#[pallet::trait_]
-		pub trait Config: frame_system::Config {
+		pub trait Trait: frame_system::Trait {
 			type Balance: Member + scale_info::TypeInfo;
 		}
 
@@ -417,18 +423,18 @@ mod tests {
 		pub struct Module<T>(PhantomData<T>);
 
 		#[pallet::module_interface]
-		impl<T: Config> ModuleInterface<BlockNumberFor<T>> for Module<T> {
+		impl<T: Trait> ModuleInterface<BlockNumberFor<T>> for Module<T> {
 		}
 
 		#[pallet::call]
-		impl<T: Config> Call for Module<T> {}
+		impl<T: Trait> Call for Module<T> {}
 
-		type BalanceOf<T> = <T as Configj>::Balance;
+		type BalanceOf<T> = <T as Trait>::Balance;
 
 		#[pallet::event]
-		#[pallet::metadata(BalanceOf<T> = Balance)]
+		#[pallet::metadata(T::Balance = Balance)]
 		pub enum Event<T: Trait> {
-			TestEvent(BalanceOf<T>),
+			TestEvent(T::Balance),
 		}
 
 		#[pallet::storage] #[allow(type_alias_bounds)]
@@ -460,11 +466,11 @@ mod tests {
 		}
 	}
 
-	impl event_module::Config for TestRuntime {
+	impl event_module::Trait for TestRuntime {
 		type Balance = u32;
 	}
 
-	impl event_module2::Config for TestRuntime {
+	impl event_module2::Trait for TestRuntime {
 		type Balance = u32;
 	}
 

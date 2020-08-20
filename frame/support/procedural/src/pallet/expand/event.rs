@@ -50,7 +50,7 @@ pub fn expand_event(def: &mut Def) -> proc_macro2::TokenStream {
 				.map(|(ty, segs)| {
 					quote::quote!(
 						#scrate::metadata::vnext::TypeSpec::with_name_segs::<#ty, _>(
-							vec![ #( #segs ),* ].into_iter().map(AsRef::as_ref)
+							vec![ #( stringify!(#segs) ),* ].into_iter().map(AsRef::as_ref)
 						)
 					)
 				});

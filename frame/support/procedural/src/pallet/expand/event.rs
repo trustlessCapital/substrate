@@ -45,15 +45,20 @@ pub fn expand_event(def: &mut Def) -> proc_macro2::TokenStream {
 	let metadata = event.metadata.iter()
 		.map(|(ident, args, docs)| {
 			let name = format!("{}", ident);
+			let args = args
+				.iter()
+				.map(|(ty, segs)| {
+					quote::quote!(
+						#scrate::metadata::vnext::TypeSpec::with_name_segs::<#ty, _>(
+							vec![ #( #segs ),* ].into_iter().map(AsRef::as_ref)
+						)
+					)
+				});
 			quote::quote!(
-				#frame_support::event::EventMetadata {
-					name: #frame_support::event::DecodeDifferent::Encode(#name),
-					arguments: #frame_support::event::DecodeDifferent::Encode(&[
-						#( #args, )*
-					]),
-					documentation: #frame_support::event::DecodeDifferent::Encode(&[
-						#( #docs, )*
-					]),
+				#scrate::metadata::vnext::EventMetadata {
+					name: #name,
+					arguments: vec![ #( #args, )* ],
+					documentation: vec![ #( #docs, )* ],
 				},
 			)
 		});
@@ -135,8 +140,8 @@ pub fn expand_event(def: &mut Def) -> proc_macro2::TokenStream {
 		impl<#event_impl_gen> #event_ident<#event_use_gen> #event_where_clause {
 			#[allow(dead_code)]
 			#[doc(hidden)]
-			pub fn metadata() -> &'static [#frame_support::event::EventMetadata] {
-				&[ #( #metadata )* ]
+			pub fn metadata() -> Vec<#scrate::metadata::vnext::EventMetadata> {
+				vec![ #( #metadata )* ]
 			}
 		}
 	)

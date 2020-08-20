@@ -270,7 +270,7 @@ pub type DisplayName<T> = scale_info::Path<T>;
 #[cfg_attr(feature = "std", derive(Decode))]
 pub struct TypeSpec<T: Form = MetaForm> {
 	/// The actual type.
-	id: T::TypeId,
+	ty: T::TypeId,
 	/// The compile-time known displayed representation of the type.
 	display_name: DisplayName<T>,
 }
@@ -280,7 +280,7 @@ impl IntoCompact for TypeSpec {
 
 	fn into_compact(self, registry: &mut Registry) -> Self::Output {
 		TypeSpec {
-			id: registry.register_type(&self.id),
+			ty: registry.register_type(&self.ty),
 			display_name: self.display_name.into_compact(registry),
 		}
 	}
@@ -323,7 +323,7 @@ impl TypeSpec {
 			S: IntoIterator<Item = &'static str>,
 	{
 		Self {
-			id: meta_type::<T>(),
+			ty: meta_type::<T>(),
 			display_name: DisplayName::from_segments(segments)
 				.expect("display name is invalid"),
 		}
@@ -335,7 +335,7 @@ impl TypeSpec {
 			T: TypeInfo + 'static,
 	{
 		Self {
-			id: meta_type::<T>(),
+			ty: meta_type::<T>(),
 			display_name: DisplayName::default(),
 		}
 	}

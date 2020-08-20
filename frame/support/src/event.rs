@@ -503,6 +503,7 @@ mod tests {
 	use serde::Serialize;
 	use codec::{Encode, Decode};
 	use sp_runtime::traits::Member;
+	use frame_metadata::vnext::EventMetadata;
 
 	#[frame_support::pallet(System)]
 	mod frame_system {
@@ -727,36 +728,44 @@ mod tests {
 
 	#[test]
 	fn outer_event_metadata() {
-		let expected_metadata = crate::metadata::vnext::OuterEventMetadata {
-			name: "TestEvent",
-			events: vec![],
+		use scale_info::meta_type;
+		use crate::metadata::vnext::{
+			OuterEventMetadata, ModuleEventMetadata, EventMetadata, TypeSpec
+		};
 
-			// DecodeDifferent::Encode(&[
-			// 	(
-			// 		"system",
-			// 		FnEncode(|| &[
-			// 			EventMetadata {
-			// 				name: DecodeDifferent::Encode("SystemEvent"),
-			// 				arguments: DecodeDifferent::Encode(&[]),
-			// 				documentation: DecodeDifferent::Encode(&[]),
-			// 			}
-			// 		])
-			// 	),
-			// 	(
-			// 		"event_module",
-			// 		FnEncode(|| &[
-			// 			EventMetadata {
-			// 				name: DecodeDifferent::Encode("TestEvent"),
-			// 				arguments: DecodeDifferent::Encode(&[ "Balance", "Origin" ]),
-			// 				documentation: DecodeDifferent::Encode(&[ " Hi, I am a comment." ])
-			// 			},
-			// 			EventMetadata {
-			// 				name: DecodeDifferent::Encode("EventWithoutParams"),
-			// 				arguments: DecodeDifferent::Encode(&[]),
-			// 				documentation: DecodeDifferent::Encode(&[ " Dog" ]),
-			// 			},
-			// 		])
-			// 	),
+		let expected_metadata = OuterEventMetadata {
+			name: "TestEvent",
+			events: vec![
+				ModuleEventMetadata {
+					name: "system",
+					events: vec! [
+						EventMetadata {
+							name: "SystemEvent",
+							arguments: Vec::new(),
+							documentation: Vec::new(),
+						}
+					]
+				},
+				ModuleEventMetadata {
+					name: "event_module",
+					events: vec! [
+						EventMetadata {
+							name: "TestEvent",
+							arguments: vec! [
+								TypeSpec::with_name_str::<<TestRuntime as event_module::Trait>::Balance>("Balance"),
+								TypeSpec::with_name_str::<<TestRuntime as frame_system::Trait>::Balance>("Origin"),
+							],
+							documentation: vec! [" Hi, I am a comment."],
+						},
+						EventMetadata {
+							name: "EventWithoutParams",
+							arguments: vec! [],
+							documentation: vec! [" Dog"],
+						}
+					]
+				}
+			],
+
 			// 	(
 			// 		"event_module2",
 			// 		FnEncode(|| &[

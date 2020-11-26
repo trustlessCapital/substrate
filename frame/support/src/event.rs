@@ -138,13 +138,6 @@ macro_rules! decl_event {
 		impl From<Event> for () {
 			fn from(_: Event) -> () { () }
 		}
-		impl Event {
-			#[allow(dead_code)]
-			#[doc(hidden)]
-			pub fn metadata() -> &'static [ $crate::event::EventMetadata ] {
-				$crate::__events_to_metadata!(; $( $events )* )
-			}
-		}
 	}
 }
 
@@ -286,46 +279,9 @@ macro_rules! __decl_generic_event {
 		impl<$( $generic_param ),* $(, $instance)? > From<RawEvent<$( $generic_param ),* $(, $instance)?>> for () {
 			fn from(_: RawEvent<$( $generic_param ),* $(, $instance)?>) -> () { () }
 		}
-		impl<$( $generic_param ),* $(, $instance)?> RawEvent<$( $generic_param ),* $(, $instance)?> {
-			#[allow(dead_code)]
-			#[doc(hidden)]
-			pub fn metadata() -> &'static [$crate::event::EventMetadata] {
-				$crate::__events_to_metadata!(; $( $events )* )
-			}
-		}
 	};
 	(@cannot_parse $ty:ty) => {
 		compile_error!(concat!("The type `", stringify!($ty), "` can't be parsed as an unnamed one, please name it `Name = ", stringify!($ty), "`"));
-	}
-}
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! __events_to_metadata {
-	(
-		$( $metadata:expr ),*;
-		$( #[doc = $doc_attr:tt] )*
-		$event:ident $( ( $( $param:path ),* $(,)? ) )*,
-		$( $rest:tt )*
-	) => {
-		$crate::__events_to_metadata!(
-			$( $metadata, )*
-			$crate::event::EventMetadata {
-				name: $crate::event::DecodeDifferent::Encode(stringify!($event)),
-				arguments: $crate::event::DecodeDifferent::Encode(&[
-					$( $( stringify!($param) ),* )*
-				]),
-				documentation: $crate::event::DecodeDifferent::Encode(&[
-					$( $doc_attr ),*
-				]),
-			};
-			$( $rest )*
-		)
-	};
-	(
-		$( $metadata:expr ),*;
-	) => {
-		&[ $( $metadata ),* ]
 	}
 }
 
@@ -502,19 +458,17 @@ macro_rules! __impl_outer_event_json_metadata {
 	) => {
 		impl $runtime {
 			#[allow(dead_code)]
-			pub fn outer_event_metadata() -> $crate::event::OuterEventMetadata {
-				$crate::event::OuterEventMetadata {
-					name: $crate::event::DecodeDifferent::Encode(stringify!($event_name)),
-					events: $crate::event::DecodeDifferent::Encode(&[
+			pub fn outer_event_metadata() -> $crate::metadata::vnext::OuterEventMetadata {
+				$crate::metadata::vnext::OuterEventMetadata {
+					name: stringify!($event_name),
+					events: vec![
 						$(
-							(
-								stringify!($module_name),
-								$crate::event::FnEncode(
-									$module_name::Event ::< $( $generic_params ),* > ::metadata
-								)
-							)
+							$crate::metadata::vnext::ModuleEventMetadata {
+								name: stringify!($module_name),
+								events: $module_name::Event ::< $( $generic_params ),* > ::metadata()
+							}
 						),*
-					])
+					]
 				}
 			}
 
@@ -534,7 +488,7 @@ macro_rules! __impl_outer_event_json_metadata {
 			$(
 				#[allow(dead_code)]
 				pub fn [< __module_events_ $module_name $( _ $instance )? >] () ->
-					&'static [$crate::event::EventMetadata]
+					Vec<$crate::metadata::vnext::EventMetadata>
 				{
 					$module_name::Event ::< $( $generic_params ),* > ::metadata()
 				}
@@ -751,7 +705,7 @@ mod tests {
 		type DbWeight = ();
 	}
 
-	const EXPECTED_METADATA: OuterEventMetadata = OuterEventMetadata {
+	const EXPECTED_METADATA: vnext::OuterEventMetadata = OuterEventMetadata {
 		name: DecodeDifferent::Encode("TestEvent"),
 		events: DecodeDifferent::Encode(&[
 			(

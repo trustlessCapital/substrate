@@ -34,8 +34,10 @@ use scale_info::{
 		Form,
 		MetaForm,
 	},
+	meta_type,
 	IntoCompact,
 	Registry,
+	TypeInfo,
 };
 
 pub type RuntimeMetadataLastVersion<T> = RuntimeMetadataV11<T>;
@@ -116,7 +118,7 @@ pub struct ModuleMetadata<T: Form = MetaForm> {
 	pub name: T::String,
 	// pub storage: Option<DecodeDifferent<FnEncode<StorageMetadata>, StorageMetadata>>,
 	pub calls: Option<Vec<FunctionMetadata<T>>>,
-	// pub event: ODFnA<EventMetadata>,
+	pub event: Option<Vec<EventMetadata<T>>>,
 	// pub constants: DFnA<ModuleConstantMetadata>,
 	// pub errors: DFnA<ErrorMetadata>,
 }
@@ -126,8 +128,9 @@ impl IntoCompact for ModuleMetadata {
 
 	fn into_compact(self, registry: &mut Registry) -> Self::Output {
 		ModuleMetadata {
-			name: self.name,
+			name: self.name.into_compact(registry),
 			calls: self.calls.map(|calls| registry.map_into_compact(calls)),
+			event: self.event.map(|event| registry.map_into_compact(event)),
 		}
 	}
 }
@@ -146,9 +149,9 @@ impl IntoCompact for FunctionMetadata {
 
 	fn into_compact(self, registry: &mut Registry) -> Self::Output {
 		FunctionMetadata {
-			name: self.name,
+			name: self.name.into_compact(registry),
 			arguments: registry.map_into_compact(self.arguments),
-			documentation: self.documentation,
+			documentation: registry.map_into_compact(self.documentation),
 		}
 	}
 }
@@ -167,9 +170,173 @@ impl IntoCompact for FunctionArgumentMetadata {
 
 	fn into_compact(self, registry: &mut Registry) -> Self::Output {
 		FunctionArgumentMetadata {
-			name: self.name,
+			name: self.name.into_compact(registry),
 			ty: registry.register_type(&self.ty),
 			is_compact: self.is_compact,
+		}
+	}
+}
+
+/// All the metadata about an outer event.
+#[derive(Clone, PartialEq, Eq, Encode, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Decode))]
+pub struct OuterEventMetadata<T: Form = MetaForm> {
+	pub name: T::String,
+	pub events: Vec<ModuleEventMetadata<T>>,
+}
+
+impl IntoCompact for OuterEventMetadata {
+	type Output = OuterEventMetadata<CompactForm>;
+
+	fn into_compact(self, registry: &mut Registry) -> Self::Output {
+		OuterEventMetadata {
+			name: self.name.into_compact(registry),
+			events: registry.map_into_compact(self.events),
+		}
+	}
+}
+
+/// Metadata about a module event.
+#[derive(Clone, PartialEq, Eq, Encode, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Decode))]
+pub struct ModuleEventMetadata<T: Form = MetaForm> {
+	pub name: T::String,
+	pub events: Vec<EventMetadata<T>>,
+}
+
+impl IntoCompact for ModuleEventMetadata {
+	type Output = ModuleEventMetadata<CompactForm>;
+
+	fn into_compact(self, registry: &mut Registry) -> Self::Output {
+		ModuleEventMetadata {
+			name: self.name.into_compact(registry),
+			events: registry.map_into_compact(self.events),
+		}
+	}
+}
+
+/// All the metadata about an event.
+#[derive(Clone, PartialEq, Eq, Encode, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Decode))]
+pub struct EventMetadata<T: Form = MetaForm> {
+	pub name: T::String,
+	pub arguments: Vec<TypeSpec<T>>,
+	pub documentation: Vec<T::String>,
+}
+
+impl IntoCompact for EventMetadata {
+	type Output = EventMetadata<CompactForm>;
+
+	fn into_compact(self, registry: &mut Registry) -> Self::Output {
+		EventMetadata {
+			name: self.name.into_compact(registry),
+			arguments: registry.map_into_compact(self.arguments),
+			documentation: registry.map_into_compact(self.documentation),
+		}
+	}
+}
+
+/// Describes the syntactical name of a type at a given type position.
+///
+/// This is important when trying to work with type aliases.
+/// Normally a type alias is transparent and so scenarios such as
+/// ```no_compile
+/// type Foo = i32;
+/// fn bar(foo: Foo);
+/// ```
+/// Will only communicate that `foo` is of type `i32` which is correct,
+/// however, it will miss the potentially important information that it
+/// is being used through a type alias named `Foo`.
+pub type DisplayName<T> = scale_info::Path<T>;
+
+/// A type specification.
+///
+/// This contains the actual type as well as an optional compile-time
+/// known displayed representation of the type. This is useful for cases
+/// where the type is used through a type alias in order to provide
+/// information about the alias name.
+///
+/// # Examples
+///
+/// Consider the following Rust function:
+/// ```no_compile
+/// fn is_sorted(input: &[i32], pred: Predicate) -> bool;
+/// ```
+/// In this above example `input` would have no displayable name,
+/// `pred`'s display name is `Predicate` and the display name of
+/// the return type is simply `bool`. Note that `Predicate` could
+/// simply be a type alias to `fn(i32, i32) -> Ordering`.
+#[derive(Clone, PartialEq, Eq, Encode, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Decode))]
+pub struct TypeSpec<T: Form = MetaForm> {
+	/// The actual type.
+	id: T::TypeId,
+	/// The compile-time known displayed representation of the type.
+	display_name: DisplayName<T>,
+}
+
+impl IntoCompact for TypeSpec {
+	type Output = TypeSpec<CompactForm>;
+
+	fn into_compact(self, registry: &mut Registry) -> Self::Output {
+		TypeSpec {
+			id: registry.register_type(&self.id),
+			display_name: self.display_name.into_compact(registry),
+		}
+	}
+}
+
+impl TypeSpec {
+	/// Creates a new type specification with a display name.
+	///
+	/// The name is any valid Rust identifier or path.
+	///
+	/// # Examples
+	///
+	/// Valid display names are `foo`, `foo::bar`, `foo::bar::Baz`, etc.
+	///
+	/// # Panics
+	///
+	/// Panics if the given display name is invalid.
+	pub fn with_name_str<T>(display_name: &'static str) -> Self
+		where
+			T: TypeInfo + 'static,
+	{
+		Self::with_name_segs::<T, _>(display_name.split("::"))
+	}
+
+	/// Creates a new type specification with a display name
+	/// represented by the given path segments.
+	///
+	/// The display name segments all must be valid Rust identifiers.
+	///
+	/// # Examples
+	///
+	/// Valid display names are `foo`, `foo::bar`, `foo::bar::Baz`, etc.
+	///
+	/// # Panics
+	///
+	/// Panics if the given display name is invalid.
+	pub fn with_name_segs<T, S>(segments: S) -> Self
+		where
+			T: TypeInfo + 'static,
+			S: IntoIterator<Item = &'static str>,
+	{
+		Self {
+			id: meta_type::<T>(),
+			display_name: DisplayName::from_segments(segments)
+				.expect("display name is invalid"),
+		}
+	}
+
+	/// Creates a new type specification without a display name.
+	pub fn new<T>() -> Self
+		where
+			T: TypeInfo + 'static,
+	{
+		Self {
+			id: meta_type::<T>(),
+			display_name: DisplayName::default(),
 		}
 	}
 }

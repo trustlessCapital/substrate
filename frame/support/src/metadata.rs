@@ -118,9 +118,9 @@ macro_rules! __runtime_modules_to_metadata {
 				calls: $crate::__runtime_modules_to_metadata_calls_call!(
 					$mod, $module $( <$instance> )?, $runtime, $(with $kw)*
 				),
-				// event: $crate::__runtime_modules_to_metadata_calls_event!(
-				// 	$mod, $module $( <$instance> )?, $runtime, $(with $kw)*
-				// ),
+				event: $crate::__runtime_modules_to_metadata_calls_event!(
+					$mod, $module $( <$instance> )?, $runtime, $(with $kw)*
+				),
 				// constants: $crate::metadata::DecodeDifferent::Encode(
 				// 	$crate::metadata::FnEncode(
 				// 		$mod::$module::<$runtime $(, $mod::$instance )?>::module_constants_metadata
@@ -186,13 +186,10 @@ macro_rules! __runtime_modules_to_metadata_calls_event {
 		with Event
 		$(with $kws:ident)*
 	) => {
-		Some($crate::metadata::DecodeDifferent::Encode(
-			$crate::metadata::FnEncode(
-				$crate::paste::expr!{
-					$runtime:: [< __module_events_ $mod $(_ $instance)?>]
-				}
-			)
-		))
+		Some($crate::paste::expr!{
+				$runtime:: [< __module_events_ $mod $(_ $instance)?>]()
+			}
+		)
 	};
 	(
 		$mod: ident,
@@ -413,7 +410,7 @@ mod tests {
 
 		#[pallet::trait_]
 		pub trait Config: frame_system::Config {
-			type Balance;
+			type Balance: Member + scale_info::TypeInfo;
 		}
 
 		#[pallet::module]
@@ -524,15 +521,13 @@ mod tests {
 					index: 0,
 					// storage: None,
 					calls: None,
-					// event: Some(DecodeDifferent::Encode(
-					// 	FnEncode(||&[
-					// 		EventMetadata {
-					// 			name: DecodeDifferent::Encode("SystemEvent"),
-					// 			arguments: DecodeDifferent::Encode(&[]),
-					// 			documentation: DecodeDifferent::Encode(&[])
-					// 		}
-					// 	])
-					// )),
+					event: Some(vec![
+						vnext::EventMetadata {
+							name: "SystemEvent",
+							arguments: Vec::new(),
+							documentation: Vec::new()
+						}
+					]),
 					// constants: DecodeDifferent::Encode(
 					// 	FnEncode(|| &[
 					// 		ModuleConstantMetadata {
@@ -579,15 +574,15 @@ mod tests {
 								],
 								documentation: vec![" Doc comment put in metadata"],
 							}]),
-					// event: Some(DecodeDifferent::Encode(
-					// 	FnEncode(||&[
-					// 		EventMetadata {
-					// 			name: DecodeDifferent::Encode("TestEvent"),
-					// 			arguments: DecodeDifferent::Encode(&["Balance"]),
-					// 			documentation: DecodeDifferent::Encode(&[" Hi, I am a comment."])
-					// 		}
-					// 	])
-					// )),
+					event: Some(vec![
+						vnext::EventMetadata {
+							name: "TestEvent",
+							arguments: vec![
+								vnext::TypeSpec::with_name_str::<<TestRuntime as event_module::Trait>::Balance>("Balance")
+							],
+							documentation: vec![" Hi, I am a comment."],
+						}
+					]),
 					// constants: DecodeDifferent::Encode(FnEncode(|| &[])),
 					// errors: DecodeDifferent::Encode(FnEncode(|| &[
 					// 	ErrorMetadata {
@@ -629,15 +624,15 @@ mod tests {
 					// 	}),
 					// )),
 					calls: Some(vec![]),
-					// event: Some(DecodeDifferent::Encode(
-					// 	FnEncode(||&[
-					// 		EventMetadata {
-					// 			name: DecodeDifferent::Encode("TestEvent"),
-					// 			arguments: DecodeDifferent::Encode(&["Balance"]),
-					// 			documentation: DecodeDifferent::Encode(&[])
-					// 		}
-					// 	])
-					// )),
+					event: Some(vec![
+						vnext::EventMetadata {
+							name: "TestEvent",
+							arguments: vec![
+								vnext::TypeSpec::with_name_str::<<TestRuntime as event_module::Trait>::Balance>("Balance")
+							],
+							documentation: Vec::new(),
+						}
+					]),
 					// constants: DecodeDifferent::Encode(FnEncode(|| &[])),
 					// errors: DecodeDifferent::Encode(FnEncode(|| &[])),
 				},
@@ -652,11 +647,11 @@ mod tests {
 		};
 
 		let metadata_encoded = TestRuntime::metadata().encode();
-		let metadata_decoded = vnext::RuntimeMetadataPrefixed::<scale_info::form::OwnedForm>::decode(&mut &metadata_encoded[..]);
+		let metadata_decoded = vnext::RuntimeMetadataPrefixed::<scale_info::form::CompactForm>::decode(&mut &metadata_encoded[..]);
 
 		let expected_metadata: vnext::RuntimeMetadataPrefixed<CompactForm> = expected_metadata.into_compact(&mut registry).into();
 		let expected_metadata_encoded = expected_metadata.encode();
-		let expected_metadata_decoded = vnext::RuntimeMetadataPrefixed::<scale_info::form::OwnedForm>::decode(&mut &expected_metadata_encoded[..]);
+		let expected_metadata_decoded = vnext::RuntimeMetadataPrefixed::<scale_info::form::CompactForm>::decode(&mut &expected_metadata_encoded[..]);
 
 		pretty_assertions::assert_eq!(expected_metadata_decoded.unwrap(), metadata_decoded.unwrap());
 	}

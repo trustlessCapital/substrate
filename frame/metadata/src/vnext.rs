@@ -97,7 +97,7 @@ pub struct ExtrinsicMetadata<T: Form = MetaForm> {
 	/// Extrinsic version.
 	pub version: u8,
 	/// The signed extensions in the order they appear in the extrinsic.
-	pub signed_extensions: Vec<T::TypeId>,
+	pub signed_extensions: Vec<T::Type>,
 }
 
 impl IntoCompact for ExtrinsicMetadata {
@@ -161,7 +161,7 @@ impl IntoCompact for FunctionMetadata {
 #[cfg_attr(feature = "std", derive(Decode))]
 pub struct FunctionArgumentMetadata<T: Form = MetaForm> {
 	pub name: T::String,
-	pub ty: T::TypeId,
+	pub ty: T::Type,
 	pub is_compact: bool,
 }
 
@@ -270,7 +270,7 @@ pub type DisplayName<T> = scale_info::Path<T>;
 #[cfg_attr(feature = "std", derive(Decode))]
 pub struct TypeSpec<T: Form = MetaForm> {
 	/// The actual type.
-	ty: T::TypeId,
+	ty: T::Type,
 	/// The compile-time known displayed representation of the type.
 	display_name: DisplayName<T>,
 }

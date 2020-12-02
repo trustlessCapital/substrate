@@ -16,7 +16,6 @@
 // limitations under the License.
 
 use crate::pallet::Def;
-use frame_support_procedural_tools::clean_type_string;
 use syn::spanned::Spanned;
 
 /// * Generate enum call and implement various trait on it.
@@ -165,12 +164,12 @@ pub fn expand_call(def: &mut Def) -> proc_macro2::TokenStream {
 
 		impl<#type_impl_gen> #pallet_ident<#type_use_gen> #where_clause {
 			#[doc(hidden)]
-			pub fn call_functions() -> Vec<#scrate::metadata::vnext::FunctionMetadata> {
+			pub fn call_functions() -> Vec<#frame_support::metadata::vnext::FunctionMetadata> {
 				vec![ #(
-					#scrate::metadata::vnext::FunctionMetadata {
+					#frame_support::metadata::vnext::FunctionMetadata {
 						name: stringify!(#fn_),
 						arguments: vec![ #(
-							#scrate::metadata::vnext::FunctionArgumentMetadata {
+							#frame_support::metadata::vnext::FunctionArgumentMetadata {
 								name: stringify!(#args_name),
 								ty: ::scale_info::meta_type::<#args_type>(),
 								is_compact: #args_is_compact,

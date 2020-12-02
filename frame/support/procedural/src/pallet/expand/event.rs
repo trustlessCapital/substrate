@@ -49,13 +49,13 @@ pub fn expand_event(def: &mut Def) -> proc_macro2::TokenStream {
 				.iter()
 				.map(|(ty, segs)| {
 					quote::quote!(
-						#scrate::metadata::vnext::TypeSpec::with_name_segs::<#ty, _>(
+						#frame_support::metadata::vnext::TypeSpec::with_name_segs::<#ty, _>(
 							vec![ #( stringify!(#segs) ),* ].into_iter().map(AsRef::as_ref)
 						)
 					)
 				});
 			quote::quote!(
-				#scrate::metadata::vnext::EventMetadata {
+				#frame_support::metadata::vnext::EventMetadata {
 					name: #name,
 					arguments: vec![ #( #args, )* ],
 					documentation: vec![ #( #docs, )* ],
@@ -140,7 +140,7 @@ pub fn expand_event(def: &mut Def) -> proc_macro2::TokenStream {
 		impl<#event_impl_gen> #event_ident<#event_use_gen> #event_where_clause {
 			#[allow(dead_code)]
 			#[doc(hidden)]
-			pub fn metadata() -> Vec<#scrate::metadata::vnext::EventMetadata> {
+			pub fn metadata() -> Vec<#frame_support::metadata::vnext::EventMetadata> {
 				vec![ #( #metadata )* ]
 			}
 		}

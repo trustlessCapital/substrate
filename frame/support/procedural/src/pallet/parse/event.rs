@@ -18,7 +18,6 @@
 use super::helper;
 use syn::spanned::Spanned;
 use quote::ToTokens;
-use frame_support_procedural_tools::clean_type_string;
 
 /// List of additional token to be used for parsing.
 mod keyword {
@@ -226,7 +225,7 @@ impl EventDef {
 								if let syn::Type::Path(p) = &field.ty {
 									let segs = p.path.segments
 										.iter()
-										.map(|s| s.ident.clone())
+										.map(|s| s.ident.to_string())
 										.collect::<Vec<_>>();
 									Some((field.ty.clone(), segs))
 								} else {

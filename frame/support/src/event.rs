@@ -549,9 +549,7 @@ mod tests {
 		use super::frame_system::pallet_prelude::*;
 		use frame_support::pallet_prelude::*;
 
-		#[pallet::trait_]
-		pub trait Trait: frame_system::Config {}
-		impl<T: Config> Trait for T {}
+		#[pallet::config]
 		pub trait Config: 'static {
 			type Origin;
 			type BlockNumber;
@@ -582,7 +580,7 @@ mod tests {
 		use super::frame_system::pallet_prelude::*;
 		use super::frame_system;
 
-		#[pallet::trait_]
+		#[pallet::config]
 		pub trait Trait: frame_system::Trait {
 			type Balance: Member
 				+ codec::Codec
@@ -620,7 +618,7 @@ mod tests {
 		use super::frame_system::pallet_prelude::*;
 		use super::frame_system;
 
-		#[pallet::trait_]
+		#[pallet::config]
 		pub trait Trait: frame_system::Trait {
 			type Balance: Member
 			+ codec::Codec
@@ -655,7 +653,7 @@ mod tests {
 		use super::frame_system::pallet_prelude::*;
 		use super::frame_system;
 
-		#[pallet::trait_]
+		#[pallet::config]
 		pub trait Trait: frame_system::Trait {}
 
 		#[pallet::module]

@@ -306,7 +306,7 @@ mod tests {
 		/// Kind of alias for `Config` trait. Deprecated as `Trait` is renamed `Config`.
 		pub trait Trait: Config {}
 		impl<T: Config> Trait for T {}
-		#[pallet::trait_]
+		#[pallet::config]
 		pub trait Config: 'static {
 			type BaseCallFilter;
 			const ASSOCIATED_CONST: u64 = 500;
@@ -365,7 +365,7 @@ mod tests {
 		use crate::dispatch::DispatchResult;
 		use super::frame_system;
 
-		#[pallet::trait_]
+		#[pallet::config]
 		pub trait Trait: frame_system::Trait {
 			type Balance: Member
 				+ codec::Codec
@@ -414,7 +414,7 @@ mod tests {
 	mod event_module2 {
 		use super::frame_system;
 
-		#[pallet::trait_]
+		#[pallet::config]
 		pub trait Trait: frame_system::Trait {
 			type Balance: Member + scale_info::TypeInfo;
 		}

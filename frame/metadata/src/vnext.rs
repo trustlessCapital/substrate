@@ -236,19 +236,6 @@ impl IntoCompact for EventMetadata {
 	}
 }
 
-/// Describes the syntactical name of a type at a given type position.
-///
-/// This is important when trying to work with type aliases.
-/// Normally a type alias is transparent and so scenarios such as
-/// ```no_compile
-/// type Foo = i32;
-/// fn bar(foo: Foo);
-/// ```
-/// Will only communicate that `foo` is of type `i32` which is correct,
-/// however, it will miss the potentially important information that it
-/// is being used through a type alias named `Foo`.
-pub type DisplayName<T> = scale_info::Path<T>;
-
 /// A type specification.
 ///
 /// This contains the actual type as well as an optional compile-time
@@ -272,7 +259,7 @@ pub struct TypeSpec<T: Form = MetaForm> {
 	/// The actual type.
 	ty: T::Type,
 	/// The compile-time known displayed representation of the type.
-	display_name: DisplayName<T>,
+	name: T::String,
 }
 
 impl IntoCompact for TypeSpec {
@@ -281,62 +268,20 @@ impl IntoCompact for TypeSpec {
 	fn into_compact(self, registry: &mut Registry) -> Self::Output {
 		TypeSpec {
 			ty: registry.register_type(&self.ty),
-			display_name: self.display_name.into_compact(registry),
+			name: self.name.into_compact(registry),
 		}
 	}
 }
 
 impl TypeSpec {
-	/// Creates a new type specification with a display name.
-	///
-	/// The name is any valid Rust identifier or path.
-	///
-	/// # Examples
-	///
-	/// Valid display names are `foo`, `foo::bar`, `foo::bar::Baz`, etc.
-	///
-	/// # Panics
-	///
-	/// Panics if the given display name is invalid.
-	pub fn with_name_str<T>(display_name: &'static str) -> Self
-		where
-			T: TypeInfo + 'static,
-	{
-		Self::with_name_segs::<T, _>(display_name.split("::"))
-	}
-
-	/// Creates a new type specification with a display name
-	/// represented by the given path segments.
-	///
-	/// The display name segments all must be valid Rust identifiers.
-	///
-	/// # Examples
-	///
-	/// Valid display names are `foo`, `foo::bar`, `foo::bar::Baz`, etc.
-	///
-	/// # Panics
-	///
-	/// Panics if the given display name is invalid.
-	pub fn with_name_segs<T, S>(segments: S) -> Self
-		where
-			T: TypeInfo + 'static,
-			S: IntoIterator<Item = &'static str>,
-	{
-		Self {
-			ty: meta_type::<T>(),
-			display_name: DisplayName::from_segments(segments)
-				.expect("display name is invalid"),
-		}
-	}
-
 	/// Creates a new type specification without a display name.
-	pub fn new<T>() -> Self
-		where
-			T: TypeInfo + 'static,
+	pub fn new<T>(name: &'static str) -> Self
+	where
+		T: TypeInfo + 'static,
 	{
 		Self {
 			ty: meta_type::<T>(),
-			display_name: DisplayName::default(),
+			name,
 		}
 	}
 }

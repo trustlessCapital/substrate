@@ -43,17 +43,16 @@ pub fn expand_event(def: &mut Def) -> proc_macro2::TokenStream {
 	let event_use_gen = &event.event_use_gen();
 	let event_impl_gen= &event.event_impl_gen();
 	let metadata = event.metadata.iter()
-		.map(|(ident, args, docs)| {
-			let name = format!("{}", ident);
-			let args = args
+		.map(|event| {
+			let name = format!("{}", event.name);
+			let args = event.args
 				.iter()
-				.map(|(ty, segs)| {
+				.map(|(ty, name)| {
 					quote::quote!(
-						#frame_support::metadata::vnext::TypeSpec::with_name_segs::<#ty, _>(
-							vec![ #( stringify!(#segs) ),* ].into_iter().map(AsRef::as_ref)
-						)
+						#frame_support::metadata::vnext::TypeSpec::new::<#ty>(#name)
 					)
 				});
+			let docs = &event.docs;
 			quote::quote!(
 				#frame_support::metadata::vnext::EventMetadata {
 					name: #name,

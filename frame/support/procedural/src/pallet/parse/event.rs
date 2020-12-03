@@ -18,6 +18,7 @@
 use super::helper;
 use syn::spanned::Spanned;
 use quote::ToTokens;
+use frame_support_procedural_tools::clean_type_string;
 
 /// List of additional token to be used for parsing.
 mod keyword {
@@ -35,7 +36,7 @@ pub struct EventDef {
 	/// The keyword Event used (contains span).
 	pub event: keyword::Event,
 	/// Event metadatas: `(name, args, docs)`.
-	pub metadata: Vec<(syn::Ident, Vec<(syn::Type, Vec<syn::Ident>)>, Vec<syn::Lit>)>, // todo: [AJ] could introduce type here
+	pub metadata: Vec<EventDefMetadata>,
 	/// A set of usage of instance, must be check for consistency with trait.
 	pub instances: Vec<helper::InstanceUsage>,
 	/// If event is declared with instance.
@@ -76,6 +77,13 @@ impl EventDef {
 			quote::quote!()
 		}
 	}
+}
+
+/// Metadata for a pallet event variant.
+pub struct EventDefMetadata {
+	pub name: syn::Ident,
+	pub args: Vec<(syn::Type, String)>,
+	pub docs: Vec<syn::Lit>,
 }
 
 /// Attribute for Event: defines metadata name to use.
@@ -220,22 +228,14 @@ impl EventDef {
 				let args = variant.fields.iter()
 					.map(|field| {
 						metadata.iter().find(|m| m.0 == field.ty)
-							.map(|m| (m.0.clone(), vec![m.1.clone()]))
-							.or_else(|| {
-								if let syn::Type::Path(p) = &field.ty {
-									let segs = p.path.segments
-										.iter()
-										.map(|s| s.ident.to_string())
-										.collect::<Vec<_>>();
-									Some((field.ty.clone(), segs))
-								} else {
-									None
-								}
+							.cloned()
+							.unwrap_or_else(|| {
+								(field.ty.clone(), clean_type_string(&field.ty.to_token_stream().to_string()))
 							})
 					})
 					.collect();
 
-				(name, args, docs)
+				EventDefMetadata { name, args, docs }
 			})
 			.collect();
 

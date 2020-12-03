@@ -167,7 +167,7 @@ pub fn expand_call(def: &mut Def) -> proc_macro2::TokenStream {
 			pub fn call_functions() -> Vec<#frame_support::metadata::vnext::FunctionMetadata> {
 				vec![ #(
 					#frame_support::metadata::vnext::FunctionMetadata {
-						name: stringify!(#fn_),
+						name: stringify!(#fn_name),
 						arguments: vec![ #(
 							#frame_support::metadata::vnext::FunctionArgumentMetadata {
 								name: stringify!(#args_name),

@@ -505,12 +505,11 @@ mod tests {
 	use sp_runtime::traits::Member;
 	use frame_metadata::vnext::EventMetadata;
 
-	#[frame_support::pallet(System)]
+	#[frame_support::pallet]
 	mod frame_system {
-		/// Kind of alias for `Config` trait. Deprecated as `Trait` is renamed `Config`.
-		pub trait Trait: Config {}
-		impl<T: Config> Trait for T {}
-		pub trait Config: 'static {
+		#[pallet::config]
+		#[pallet::disable_frame_system_supertrait_check]
+		pub trait Config: frame_system::Config {
 			type Origin: Member
 				+ codec::Codec
 				+ scale_info::TypeInfo;
@@ -519,23 +518,23 @@ mod tests {
 				+ scale_info::TypeInfo;
 			type PalletInfo: crate::traits::PalletInfo;
 			type DbWeight: crate::traits::Get<crate::weights::RuntimeDbWeight>;
+			type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		}
 
 		// emulate the actual frame_system module exports
 		pub mod pallet_prelude {
-			pub type OriginFor<T> = <T as super::Trait>::Origin;
-			pub type BlockNumberFor<T> = <T as super::Trait>::BlockNumber;
+			pub type OriginFor<T> = <T as super::Config>::Origin;
+			pub type BlockNumberFor<T> = <T as super::Config>::BlockNumber;
 		}
 
-		#[pallet::module]
-		pub struct Module<T>(PhantomData<T>);
+		#[pallet::pallet]
+		pub struct Pallet<T>(PhantomData<T>);
 
-		#[pallet::module_interface]
-		impl<T: Trait> ModuleInterface<pallet_prelude::BlockNumberFor<T>> for Module<T> {
-		}
+		#[pallet::hooks]
+		impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 		#[pallet::call]
-		impl<T: Trait> Call for Module<T> {}
+		impl<T: Config> Pallet<T> {}
 
 		#[pallet::event]
 		pub enum Event {
@@ -543,29 +542,30 @@ mod tests {
 		}
 	}
 
-	#[frame_support::pallet(SystemRenamed)]
+	#[frame_support::pallet]
 	mod system_renamed {
 		use super::frame_system;
 		use super::frame_system::pallet_prelude::*;
 		use frame_support::pallet_prelude::*;
 
 		#[pallet::config]
+		#[pallet::disable_frame_system_supertrait_check]
 		pub trait Config: 'static {
 			type Origin;
 			type BlockNumber;
 			type PalletInfo: crate::traits::PalletInfo;
 			type DbWeight: crate::traits::Get<crate::weights::RuntimeDbWeight>;
+			type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		}
 
-		#[pallet::module]
-		pub struct Module<T>(PhantomData<T>);
+		#[pallet::pallet]
+		pub struct Pallet<T>(PhantomData<T>);
 
-		#[pallet::module_interface]
-		impl<T: Trait> ModuleInterface<BlockNumberFor<T>> for Module<T> {
-		}
+		#[pallet::hooks]
+		impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 		#[pallet::call]
-		impl<T: Trait> Call for Module<T> {}
+		impl<T: Config> Pallet<T> {}
 
 		#[pallet::event]
 		pub enum Event {
@@ -573,7 +573,7 @@ mod tests {
 		}
 	}
 
-	#[frame_support::pallet(EventModule)]
+	#[frame_support::pallet]
 	mod event_module {
 		use frame_support::pallet_prelude::*;
 		use super::*;
@@ -581,29 +581,29 @@ mod tests {
 		use super::frame_system;
 
 		#[pallet::config]
-		pub trait Trait: frame_system::Trait {
+		pub trait Config: frame_system::Config {
 			type Balance: Member
 				+ codec::Codec
 				+ scale_info::TypeInfo // todo: [AJ] only for std, and embed encoded on build?
 				+ codec::HasCompact; // todo: [AJ] can we remove this?
+			type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		}
 
-		#[pallet::module]
-		pub struct Module<T>(PhantomData<T>);
+		#[pallet::pallet]
+		pub struct Pallet<T>(PhantomData<T>);
 
-		#[pallet::module_interface]
-		impl<T: Trait> ModuleInterface<BlockNumberFor<T>> for Module<T> {
-		}
+		#[pallet::hooks]
+		impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 		#[pallet::call]
-		impl<T: Trait> Call for Module<T> {}
+		impl<T: Config> Pallet<T> {}
 
-		type BalanceFor<T> = <T as Trait>::Balance;
+		type BalanceFor<T> = <T as Config>::Balance;
 
 		/// Event without renaming the generic parameter `Balance` and `Origin`.
 		#[pallet::event]
-		#[pallet::metadata(BalanceFor<T> = Balance, OriginFor<T> = Origin)]
-		pub enum Event<T: Trait> {
+		#[pallet::metadata(BalanceFor<T> = "Balance", OriginFor<T> = "Origin")]
+		pub enum Event<T: Config> {
 			/// Hi, I am a comment.
 			TestEvent(BalanceFor<T>, OriginFor<T>),
 			/// Dog
@@ -611,7 +611,7 @@ mod tests {
 		}
 	}
 
-	#[frame_support::pallet(EventModule2)]
+	#[frame_support::pallet]
 	mod event_module2 {
 		use frame_support::pallet_prelude::*;
 		use super::*;
@@ -619,52 +619,53 @@ mod tests {
 		use super::frame_system;
 
 		#[pallet::config]
-		pub trait Trait: frame_system::Trait {
+		pub trait Config: frame_system::Config {
 			type Balance: Member
-			+ codec::Codec
-			+ scale_info::TypeInfo // todo: [AJ] only for std, and embed encoded on build?
-			+ codec::HasCompact; // todo: [AJ] can we remove this?
+				+ codec::Codec
+				+ scale_info::TypeInfo // todo: [AJ] only for std, and embed encoded on build?
+				+ codec::HasCompact; // todo: [AJ] can we remove this?
+			type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		}
 
-		#[pallet::module]
-		pub struct Module<T>(PhantomData<T>);
+		#[pallet::pallet]
+		pub struct Pallet<T>(PhantomData<T>);
 
-		#[pallet::module_interface]
-		impl<T: Trait> ModuleInterface<BlockNumberFor<T>> for Module<T> {
-		}
+		#[pallet::hooks]
+		impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 		#[pallet::call]
-		impl<T: Trait> Call for Module<T> {}
+		impl<T: Config> Pallet<T> {}
 
-		type BalanceFor<T> = <T as Trait>::Balance;
+		type BalanceFor<T> = <T as Config>::Balance;
 
 		/// Event with renamed generic parameter
 		#[pallet::event]
-		#[pallet::metadata(BalanceFor<T> = BalanceRenamed, OriginFor<T> = OriginRenamed)]
-		pub enum Event<T: Trait> {
+		#[pallet::metadata(BalanceFor<T> = "BalanceRenamed", OriginFor<T> = "OriginRenamed")]
+		pub enum Event<T: Config> {
 			TestEvent(BalanceFor<T>),
 			TestOrigin(OriginFor<T>),
 		}
 	}
 
-	#[frame_support::pallet(EventModule3)]
+	#[frame_support::pallet]
 	mod event_module3 {
 		use frame_support::pallet_prelude::*;
 		use super::frame_system::pallet_prelude::*;
 		use super::frame_system;
 
 		#[pallet::config]
-		pub trait Trait: frame_system::Trait {}
-
-		#[pallet::module]
-		pub struct Module<T>(PhantomData<T>);
-
-		#[pallet::module_interface]
-		impl<T: Trait> ModuleInterface<BlockNumberFor<T>> for Module<T> {
+		pub trait Config: frame_system::Config {
+			type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		}
 
+		#[pallet::pallet]
+		pub struct Pallet<T>(PhantomData<T>);
+
+		#[pallet::hooks]
+		impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+
 		#[pallet::call]
-		impl<T: Trait> Call for Module<T> {}
+		impl<T: Config> Pallet<T> {}
 
 		#[pallet::event]
 		pub enum Event {
@@ -684,15 +685,15 @@ mod tests {
 		}
 	}
 
-	impl event_module::Trait for TestRuntime {
+	impl event_module::Config for TestRuntime {
 		type Balance = u32;
 	}
 
-	impl event_module2::Trait for TestRuntime {
+	impl event_module2::Config for TestRuntime {
 		type Balance = u32;
 	}
 
-	impl frame_system::Trait for TestRuntime {
+	impl frame_system::Config for TestRuntime {
 		type Origin = u32;
 		type BlockNumber = u32;
 		type PalletInfo = ();
@@ -711,15 +712,15 @@ mod tests {
 	// 		event_module3,
 	// 	}
 	// }
-	// impl event_module::Trait for TestRuntime2 {
+	// impl event_module::Config for TestRuntime2 {
 	// 	type Balance = u32;
 	// }
 	//
-	// impl event_module2::Trait for TestRuntime2 {
+	// impl event_module2::Config for TestRuntime2 {
 	// 	type Balance = u32;
 	// }
 	//
-	// impl system_renamed::Trait for TestRuntime2 {
+	// impl system_renamed::Config for TestRuntime2 {
 	// 	type Origin = u32;
 	// 	type BlockNumber = u32;
 	// }
@@ -750,8 +751,8 @@ mod tests {
 						EventMetadata {
 							name: "TestEvent",
 							arguments: vec! [
-								TypeSpec::with_name_str::<<TestRuntime as event_module::Trait>::Balance>("Balance"),
-								TypeSpec::with_name_str::<<TestRuntime as frame_system::Trait>::Balance>("Origin"),
+								TypeSpec::with_name_str::<<TestRuntime as event_module::Config>::Balance>("Balance"),
+								TypeSpec::with_name_str::<<TestRuntime as frame_system::Config>::Balance>("Origin"),
 							],
 							documentation: vec! [" Hi, I am a comment."],
 						},
@@ -801,14 +802,14 @@ mod tests {
 		);
 		assert_eq!(runtime_1_event_module_2.encode()[0], 2);
 
-		let runtime_2_event_module_2 = TestEventSystemRenamed::event_module2(
-			event_module2::Event::<TestRuntime2>::TestEvent(3)
-		);
-		assert_eq!(runtime_2_event_module_2.encode()[0], 5);
-
-		let runtime_2_event_module_3 = TestEventSystemRenamed::event_module3(
-			event_module3::Event::HiEvent
-		);
-		assert_eq!(runtime_2_event_module_3.encode()[0], 3);
+		// let runtime_2_event_module_2 = TestEventSystemRenamed::event_module2(
+		// 	event_module2::Event::<TestRuntime2>::TestEvent(3)
+		// );
+		// assert_eq!(runtime_2_event_module_2.encode()[0], 5);
+		//
+		// let runtime_2_event_module_3 = TestEventSystemRenamed::event_module3(
+		// 	event_module3::Event::HiEvent
+		// );
+		// assert_eq!(runtime_2_event_module_3.encode()[0], 3);
 	}
 }

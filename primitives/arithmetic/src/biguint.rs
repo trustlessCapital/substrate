@@ -74,7 +74,7 @@ fn div_single(a: Double, b: Single) -> (Double, Single) {
 }
 
 /// Simple wrapper around an infinitely large integer, represented as limbs of [`Single`].
-#[derive(Clone, Default)]
+#[derive(Clone, Default, scale_info::TypeInfo)]
 pub struct BigUint {
 	/// digits (limbs) of this number (sorted as msb -> lsb).
 	pub(crate) digits: Vec<Single>,

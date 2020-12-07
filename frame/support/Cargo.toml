@@ -36,7 +36,7 @@ scale-info = { path = "../../../scale-info", package = "scale-info", default-fea
 [dev-dependencies]
 pretty_assertions = "0.6.1"
 frame-system = { version = "2.0.0", path = "../system" }
-parity-util-mem = { version = "0.7.0", features = ["primitive-types"] }
+parity-util-mem = { version = "0.7.0", default-features = false, features = ["primitive-types"] }
 substrate-test-runtime-client = { version = "2.0.0", path = "../../test-utils/runtime/client" }
 sp-api = { version = "2.0.0", default-features = false, path = "../../primitives/api" }
 scale-info = { path = "../../../scale-info", package = "scale-info", features = ["derive"] }

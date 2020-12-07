@@ -1342,16 +1342,17 @@ pub mod pallet_prelude {
 /// ```ignore
 /// #[pallet::storage]
 /// #[pallet::getter(fn $getter_name)] // optional
-/// $vis type $StorageName<$some_generic> $optional_where_clause = $StorageType<_, $some_generics, ...>;
+/// $vis type $StorageName<$some_generic> $optional_where_clause
+/// 	= $StorageType<_, $some_generics, ...>;
 /// ```
 /// I.e. it must be a type alias, with generics: `T` or `T: Config`, aliased type must be one
 /// of `StorageValue`, `StorageMap` or `StorageDoubleMap` (defined in frame_support).
 /// Their first generic must be `_` as it is written by the macro itself.
 ///
-/// The Prefix generic written by the macro is generated using PalletInfo::name and the name of the
-/// storage type.
-/// E.g. if runtime name the pallet MyExample the storage `type Foo<T> = ...` use
-/// prefixes: `Twox128(b"MyExample") ++ Twox128(b"Foo")`.
+/// The Prefix generic written by the macro is generated using `PalletInfo::name::<Pallet<..>>()`
+/// and the name of the storage type.
+/// E.g. if runtime names the pallet "MyExample" then the storage `type Foo<T> = ...` use the
+/// prefix: `Twox128(b"MyExample") ++ Twox128(b"Foo")`.
 ///
 /// The optional attribute `#[pallet::getter(fn $my_getter_fn_name)]` allow to define a
 /// getter function on `Pallet`.
@@ -1370,8 +1371,9 @@ pub mod pallet_prelude {
 /// ### Macro expansion
 ///
 /// For each storage the macro generate a struct named
-/// `_GeneratedPrefixForStorage$NameOfStorage`, implements StorageInstance on it using pallet
-/// names and storage name. and use it as first generic of the aliased type.
+/// `_GeneratedPrefixForStorage$NameOfStorage`, implements `StorageInstance` on it using pallet
+/// name and storage name. And use it as first generic of the aliased type.
+///
 ///
 /// The macro implement the function `storage_metadata` on `Pallet` implementing the metadata for
 /// storages.
@@ -2015,4 +2017,5 @@ pub mod pallet_prelude {
 /// 	}
 /// 	```
 /// * use the newest nightly possible.
+///
 pub use frame_support_procedural::pallet;
